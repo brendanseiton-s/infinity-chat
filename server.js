@@ -216,7 +216,32 @@ if (redisUrl && redisToken) {
   redis = localRedisMock;
 }
 
-const getRedisClient = () => isRedisConnected ? redis : localRedisMock;
+const getRedisClient = () => {
+  if (!isRedisConnected || !redis) return localRedisMock;
+
+  // Return a proxy that forwards commands to Upstash but falls back
+  // to the in-memory implementation if any command fails (e.g. WRONGPASS).
+  return new Proxy(redis, {
+    get(target, prop) {
+      const orig = target[prop];
+      if (typeof orig !== 'function') return orig;
+      return async (...args) => {
+        try {
+          return await orig.apply(target, args);
+        } catch (err) {
+          console.warn('[CACHE] Redis command failed, falling back to IN-MEMORY CACHE.', err.message);
+          isRedisConnected = false;
+          try { redis = null; } catch (e) {}
+          const fallback = localRedisMock[prop];
+          if (typeof fallback === 'function') {
+            return await fallback.apply(localRedisMock, args);
+          }
+          return null;
+        }
+      };
+    }
+  });
+};
 
 // ============================================================
 // 2. AUTHENTICATION MIDDLEWARE & ENDPOINTS
