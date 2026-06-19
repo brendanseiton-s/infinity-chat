@@ -352,6 +352,14 @@ async function handleAuthSubmit(event) {
     if (res.ok && data.success) {
       localStorage.setItem('chat_token', data.token);
       currentUser = data.user;
+      // Ensure the newly authenticated user appears in the local users list
+      if (!allUsers.some(u => u.username === currentUser.username)) {
+        allUsers.push(currentUser);
+      }
+      // Ensure the logged-in user appears in the local users list
+      if (!allUsers.some(u => u.username === currentUser.username)) {
+        allUsers.push(currentUser);
+      }
       loadChatScreen();
       connectWebSocket(data.token);
       await fetchUsersAndGroups();
