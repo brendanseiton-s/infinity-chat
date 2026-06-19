@@ -403,6 +403,17 @@ function connectWebSocket(token) {
     } else if (payload.type === 'online_list') {
       onlineUsernames = new Set(payload.users.map(u => u.username));
       onlineCount.textContent = payload.users.length;
+
+      // If the server /api/users list is empty (e.g. auth/fetch race or missing API response),
+      // populate `allUsers` from the presence list so DMs render correctly.
+      if ((!allUsers || allUsers.length <= 1) && Array.isArray(payload.users) && payload.users.length > 0) {
+        payload.users.forEach(u => {
+          if (!allUsers.some(x => x.username === u.username)) {
+            allUsers.push({ username: u.username, avatar: u.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.username)}` });
+          }
+        });
+      }
+
       renderDirectMessages();
     } else if (payload.type === 'notification') {
       triggerAlert(payload.message, payload.timestamp);
